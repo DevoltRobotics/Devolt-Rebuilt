@@ -1,5 +1,6 @@
 package frc.robot;
 
+
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 
@@ -12,5 +13,38 @@ public class Constants {
 
     }
 
+    public class CANId {
+        public class CAN_s0{
+            public static final int PigeonCan = 2;
+
+            public static final int FLEncoderCan = 3;
+            public static final int FREncoderCan = 4;
+            public static final int RLEncoderCan = 5;
+            public static final int RREncoderCan = 6;
+
+            public static final int FLTurnCan = 7;
+            public static final int FLDriveCan = 8;
+            public static final int FRTurnCan = 9;
+            public static final int FRDriveCan = 10;
+            public static final int RLTurnCan = 11;
+            public static final int RLDriveCan = 12;
+            public static final int RRTurnCan = 13;
+            public static final int RRDriveCan = 14;
+        }
+        public class CAN_s1{
+
+            public static final int PivotCan = 2;
+            public static final int TransferCan = 3;
+            public static final int IntakeCan = 4;
+        } 
+
+        public class CAN_s2{
+            public static final int RTurretCan = 1;
+            public static final int RFlywheelCan = 2;
+            public static final int KickerCan = 3;
+            public static final int LTurretCan = 4;
+            public static final int LFlywheelCan = 5;
+        }
+    }
 
 }
