@@ -129,4 +129,8 @@ public class IntakeSubsystem extends SubsystemBase {
     return new InstantCommand(()->{intakeSubsystem.setRollerSpeed(-1);});
 }
 
+public Command IntakeStopCMD(IntakeSubsystem intakeSubsystem){
+  return new InstantCommand(()->{intakeSubsystem.setRollerSpeed(0);});
+}
+
 }
