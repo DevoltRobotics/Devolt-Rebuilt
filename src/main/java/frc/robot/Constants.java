@@ -33,8 +33,8 @@ public class Constants {
         }
         public class CAN_s1{
 
-            public static final int PivotCan = 2;
-            public static final int TransferCan = 3;
+            public static final int PivotCan = 3;
+            public static final int TransferCan = 2;
             public static final int IntakeCan = 4;
         } 
 

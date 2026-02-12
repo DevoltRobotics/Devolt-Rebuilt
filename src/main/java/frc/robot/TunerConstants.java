@@ -157,7 +157,7 @@ public class TunerConstants {
 
     // Front Right
     private static final int kFrontRightDriveMotorId = CAN_s0.FRDriveCan;
-    private static final int kFrontRightSteerMotorId = CAN_s0.FLTurnCan;
+    private static final int kFrontRightSteerMotorId = CAN_s0.FRTurnCan;
     private static final int kFrontRightEncoderId = CAN_s0.FREncoderCan;
     private static final Angle kFrontRightEncoderOffset = Rotations.of(0.17333984375);
     private static final boolean kFrontRightSteerMotorInverted = false;

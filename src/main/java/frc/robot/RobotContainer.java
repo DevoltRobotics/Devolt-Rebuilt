@@ -11,12 +11,14 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 import frc.robot.Subsystems.CommandSwerveDrivetrain;
+import frc.robot.Subsystems.IntakeSubsystem;
 
 public class RobotContainer {
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -34,9 +36,13 @@ public class RobotContainer {
     private final CommandXboxController joystick = new CommandXboxController(0);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+
+    public final IntakeSubsystem intakeSubsystem = new IntakeSubsystem();
     
     public RobotContainer() {
         configureBindings();
+
+        CommandScheduler.getInstance().registerSubsystem(intakeSubsystem);
     }
 
     private void configureBindings() {
@@ -71,9 +77,21 @@ public class RobotContainer {
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // reset the field-centric heading on left bumper press
-        joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+       // joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
         drivetrain.registerTelemetry(logger::telemeterize);
+
+        joystick.rightBumper().whileTrue(intakeSubsystem.IntakeinCMD(intakeSubsystem));
+        joystick.leftBumper().whileTrue(intakeSubsystem.IntakeOutCMD(intakeSubsystem));
+
+        joystick.rightBumper().whileFalse(intakeSubsystem.IntakeStopCMD(intakeSubsystem));
+        joystick.leftBumper().whileFalse(intakeSubsystem.IntakeStopCMD(intakeSubsystem));
+
+        joystick.povDown().onTrue(intakeSubsystem.PivotDownCMD(intakeSubsystem));
+        joystick.povUp().onTrue(intakeSubsystem.PivotUpCMD(intakeSubsystem));
+
+
+
     }
 
     public Command getAutonomousCommand() {

@@ -4,10 +4,10 @@
 
 package frc.robot.Subsystems;
 
+
 import com.ctre.phoenix6.CANBus;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.DutyCycleOut;
-import com.ctre.phoenix6.controls.VelocityDutyCycle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -20,6 +20,9 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
 import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.networktables.DoubleSubscriber;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -30,10 +33,19 @@ public class IntakeSubsystem extends SubsystemBase {
   private TalonFX rollerMotor = new TalonFX(CAN_s1.IntakeCan, CANBus.systemCore(1));
   private SparkMax pivot = new SparkMax(1, CAN_s1.PivotCan, MotorType.kBrushless);
 
-  private double desiredPosition;
+  private double desiredPosition = 0;
 
 
   private PIDController pivotPID = new PIDController(.01, 0, 0);
+
+  private final DoubleSubscriber kPSub;
+  private final DoubleSubscriber kISub;
+  private final DoubleSubscriber kDSub;
+
+  private double kP = 1;
+  private double kI = 0;
+  private double kD = 0;
+
   private DutyCycleOut RollerDutyCycle = new DutyCycleOut(0);
 
    private final TalonFXConfiguration rollerConfig = new TalonFXConfiguration();
@@ -45,7 +57,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
   public double intakeUpPos = 0;
 
-  public double intakeDownPos = 120;
+  public double intakeDownPos = 0.34;
 
   double tolerance = 3;
   
@@ -57,6 +69,7 @@ public class IntakeSubsystem extends SubsystemBase {
     pivotConfig.absoluteEncoder
       .positionConversionFactor(1);
       
+      
 
       pivot.configure(pivotConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
@@ -67,8 +80,16 @@ public class IntakeSubsystem extends SubsystemBase {
     rollerConfig.CurrentLimits.SupplyCurrentLimit = 35;
 
     rollerMotor.getConfigurator().apply(rollerConfig);
-      
-    
+
+    var table = NetworkTableInstance.getDefault().getTable("pivot");
+
+    table.getDoubleTopic("kP").publish().set(kP);
+    table.getDoubleTopic("kI").publish().set(kI);
+    table.getDoubleTopic("kD").publish().set(kD);
+
+    kPSub = table.getDoubleTopic("kP").subscribe(kP);
+    kISub = table.getDoubleTopic("kI").subscribe(kI);
+    kDSub = table.getDoubleTopic("kD").subscribe(kD);
 
   }
 
@@ -78,7 +99,30 @@ public class IntakeSubsystem extends SubsystemBase {
 
     PivotOut = pivotPID.calculate(pivotEncoder.getPosition());
 
+    
+
+    double newkP = kPSub.get();
+    double newkI = kISub.get();
+    double newkD = kDSub.get();
+
+    if (newkP != kP || newkI != kI || newkD != kD) {
+      kP = newkP;
+      kI = newkI;
+      kD = newkD;
+
+      pivotPID.setPID(kP, kI, kD);
+      
+    }
+
     pivot.set(PivotOut);
+
+    org.littletonrobotics.junction.Logger.recordOutput("Pivot/setpoint", desiredPosition);
+    org.littletonrobotics.junction.Logger.recordOutput("Pivot/error", pivotPID.getError());
+
+    SmartDashboard.putNumber("pivot/setpoint", desiredPosition);
+    SmartDashboard.putNumber("pivot/error", pivotPID.getError());
+    SmartDashboard.putNumber("pivot/output", PivotOut);
+
   }
 
   public void setRollerSpeed(double desiredRollerSpeed){
@@ -90,43 +134,22 @@ public class IntakeSubsystem extends SubsystemBase {
     desiredPosition = position;
   }
 
-  public class SetPivotPosCMD extends Command{
+  public Command PivotUpCMD(IntakeSubsystem intakeSubsystem){
+    return new InstantCommand( ()-> { intakeSubsystem.setPosition(0); });
+}
 
-    private final IntakeSubsystem intakeSubsystem;
-    double targetPos;
+public Command PivotDownCMD(IntakeSubsystem intakeSubsystem){
+  return new InstantCommand( ()-> { intakeSubsystem.setPosition(0.3); });
+}
 
-    boolean FinishOnpoint = false;
-
-    public SetPivotPosCMD(IntakeSubsystem intakeSubsystem,Double targetPos,boolean FinishOnpoint){
-
-      this.intakeSubsystem = intakeSubsystem;
-      this.targetPos = targetPos;
-      this.FinishOnpoint = FinishOnpoint;
-
-    }
-
-    @Override
-    public void initialize(){
-        intakeSubsystem.setPosition(targetPos);
-    }
-
-    @Override
-    public boolean isFinished() {
-      if(FinishOnpoint){
-        return (intakeSubsystem.pivotPID.getError() < Math.abs(intakeSubsystem.tolerance));
-      }else{
-        return true;
-      }
-    }
-    
-  }
+  
 
   public Command IntakeinCMD(IntakeSubsystem intakeSubsystem){
-      return new InstantCommand(()->{intakeSubsystem.setRollerSpeed(1);});
+      return new InstantCommand(()->{intakeSubsystem.setRollerSpeed(-0.7);});
   }
 
   public Command IntakeOutCMD(IntakeSubsystem intakeSubsystem){
-    return new InstantCommand(()->{intakeSubsystem.setRollerSpeed(-1);});
+    return new InstantCommand(()->{intakeSubsystem.setRollerSpeed(0.7);});
 }
 
 public Command IntakeStopCMD(IntakeSubsystem intakeSubsystem){
