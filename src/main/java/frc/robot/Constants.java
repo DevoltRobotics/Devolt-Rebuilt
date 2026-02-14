@@ -39,11 +39,11 @@ public class Constants {
         } 
 
         public class CAN_s2{
-            public static final int RTurretCan = 1;
-            public static final int RFlywheelCan = 2;
+            public static final int LTurretCan = 1;
+            public static final int RFlywheelCan = 5;
             public static final int KickerCan = 3;
-            public static final int LTurretCan = 4;
-            public static final int LFlywheelCan = 5;
+            public static final int RTurretCan = 4;
+            public static final int LFlywheelCan = 2;
         }
     }
 

@@ -10,15 +10,20 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 import frc.robot.Subsystems.CommandSwerveDrivetrain;
 import frc.robot.Subsystems.IntakeSubsystem;
+import frc.robot.Subsystems.ShooterSubsystem;
+import frc.robot.Subsystems.TransferSubsystem;
 
 public class RobotContainer {
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -33,16 +38,21 @@ public class RobotContainer {
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
-    private final CommandXboxController joystick = new CommandXboxController(0);
+    public final CommandXboxController joystick = new CommandXboxController(0);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
     public final IntakeSubsystem intakeSubsystem = new IntakeSubsystem();
+
+    public final TransferSubsystem transferSubsystem = new TransferSubsystem();
+
+    public final ShooterSubsystem shooterSubsystem = new ShooterSubsystem(drivetrain.getState().Pose, drivetrain.getState().Speeds);
     
     public RobotContainer() {
         configureBindings();
-
         CommandScheduler.getInstance().registerSubsystem(intakeSubsystem);
+        CommandScheduler.getInstance().registerSubsystem(transferSubsystem);
+        CommandScheduler.getInstance().registerSubsystem(shooterSubsystem);
     }
 
     private void configureBindings() {
@@ -81,15 +91,30 @@ public class RobotContainer {
 
         drivetrain.registerTelemetry(logger::telemeterize);
 
-        joystick.rightBumper().whileTrue(intakeSubsystem.IntakeinCMD(intakeSubsystem));
-        joystick.leftBumper().whileTrue(intakeSubsystem.IntakeOutCMD(intakeSubsystem));
+        joystick.rightBumper().onTrue(new ParallelCommandGroup(
+        intakeSubsystem.pivotDownCMD(),    
+        intakeSubsystem.IntakeinCMD(intakeSubsystem)));
 
-        joystick.rightBumper().whileFalse(intakeSubsystem.IntakeStopCMD(intakeSubsystem));
-        joystick.leftBumper().whileFalse(intakeSubsystem.IntakeStopCMD(intakeSubsystem));
+        joystick.rightBumper().onFalse(intakeSubsystem.pivotDownSafeCMD());
+    
+        joystick.rightBumper().onFalse(intakeSubsystem.IntakeStopCMD(intakeSubsystem));
 
-        joystick.povDown().onTrue(intakeSubsystem.PivotDownCMD(intakeSubsystem));
-        joystick.povUp().onTrue(intakeSubsystem.PivotUpCMD(intakeSubsystem));
+        Trigger povUp = new Trigger(() -> joystick.getHID().getPOV() == 1);
+        Trigger povDown = new Trigger(() -> joystick.getHID().getPOV() == 4);
+        Trigger povRight = new Trigger(() -> joystick.getHID().getPOV() == 2);
+        Trigger povLeft = new Trigger(() -> joystick.getHID().getPOV() == 8);
 
+        povDown.onTrue(intakeSubsystem.pivotDownSafeCMD());
+        povUp.onTrue(intakeSubsystem.pivotUpCMD());
+
+        joystick.leftBumper().onTrue(transferSubsystem.TransferShootCMD(transferSubsystem));
+        joystick.leftBumper().onFalse(transferSubsystem.StopTransferCMD(transferSubsystem));
+
+        joystick.rightStick().onTrue(shooterSubsystem.SetTurretPos(0));
+        joystick.leftStick().onTrue(shooterSubsystem.SetTurretPos(90));
+
+        povRight.onTrue(shooterSubsystem.SetVelocity(30));
+        povLeft.onTrue(shooterSubsystem.SetVelocity(0));
 
 
     }

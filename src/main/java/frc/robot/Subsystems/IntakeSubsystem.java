@@ -36,13 +36,15 @@ public class IntakeSubsystem extends SubsystemBase {
   private double desiredPosition = 0;
 
 
-  private PIDController pivotPID = new PIDController(.01, 0, 0);
+  private PIDController pivotPID = new PIDController(3, 0, 0);
+
+  
 
   private final DoubleSubscriber kPSub;
   private final DoubleSubscriber kISub;
   private final DoubleSubscriber kDSub;
 
-  private double kP = 1;
+  private double kP = 3;
   private double kI = 0;
   private double kD = 0;
 
@@ -55,16 +57,18 @@ public class IntakeSubsystem extends SubsystemBase {
 
   private double PivotOut = 0;
 
-  public double intakeUpPos = 0;
+  public double intakeUpPos = 0.011;
 
-  public double intakeDownPos = 0.34;
+  public double intakeDownPos = 0.36;
 
-  double tolerance = 3;
+  public double intakeDownSafePos = 0.3;
+
+  double tolerance = 0.004;
   
   
   public IntakeSubsystem() {
     pivotConfig
-      .inverted(false)
+      .inverted(true)
       .idleMode(IdleMode.kBrake);
     pivotConfig.absoluteEncoder
       .positionConversionFactor(1);
@@ -91,6 +95,8 @@ public class IntakeSubsystem extends SubsystemBase {
     kISub = table.getDoubleTopic("kI").subscribe(kI);
     kDSub = table.getDoubleTopic("kD").subscribe(kD);
 
+    pivotPID.setTolerance(tolerance);
+
   }
 
   @Override
@@ -114,14 +120,19 @@ public class IntakeSubsystem extends SubsystemBase {
       
     }
 
+    if (pivotEncoder.getPosition() > 0.382) {
+      pivot.set(0);
+    }else{
     pivot.set(PivotOut);
-
+    }
     org.littletonrobotics.junction.Logger.recordOutput("Pivot/setpoint", desiredPosition);
     org.littletonrobotics.junction.Logger.recordOutput("Pivot/error", pivotPID.getError());
 
     SmartDashboard.putNumber("pivot/setpoint", desiredPosition);
     SmartDashboard.putNumber("pivot/error", pivotPID.getError());
     SmartDashboard.putNumber("pivot/output", PivotOut);
+    SmartDashboard.putNumber("pivot/Pos", pivotEncoder.getPosition());
+
 
   }
 
@@ -134,13 +145,18 @@ public class IntakeSubsystem extends SubsystemBase {
     desiredPosition = position;
   }
 
-  public Command PivotUpCMD(IntakeSubsystem intakeSubsystem){
-    return new InstantCommand( ()-> { intakeSubsystem.setPosition(0); });
+  public Command pivotDownSafeCMD(){
+    return new InstantCommand(() -> { setPosition(intakeDownSafePos);}, this);
+  }
+ 
+public Command pivotDownCMD(){
+  return new InstantCommand(() -> { setPosition(intakeDownPos);}, this);
 }
 
-public Command PivotDownCMD(IntakeSubsystem intakeSubsystem){
-  return new InstantCommand( ()-> { intakeSubsystem.setPosition(0.3); });
+public Command pivotUpCMD(){
+  return new InstantCommand(() -> setPosition(intakeUpPos), this);
 }
+
 
   
 

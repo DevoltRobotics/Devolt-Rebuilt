@@ -42,13 +42,13 @@ public class TransferSubsystem extends SubsystemBase {
 
   public TransferSubsystem() {
     beltConfig
-      .inverted(false)
+      .inverted(true)
       .idleMode(IdleMode.kBrake);
 
       beltMotor.configure(beltConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
       kickerConfig.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-    kickerConfig.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
+    kickerConfig.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
 
     kickerConfig.CurrentLimits.SupplyCurrentLimitEnable = true;
     kickerConfig.CurrentLimits.SupplyCurrentLimit = 35;
@@ -65,13 +65,17 @@ public class TransferSubsystem extends SubsystemBase {
 
   public Command TransferShootCMD(TransferSubsystem transferSubsystem){
     return new InstantCommand(()->{
+      kickerConfig.CurrentLimits.SupplyCurrentLimit = 35;
+          kickerMotor.getConfigurator().apply(kickerConfig);
         transferSubsystem.setSpeeds(1, 1);
     });
   }
 
   public Command StopTransferCMD(TransferSubsystem transferSubsystem){
         return new InstantCommand(()->{
-          transferSubsystem.setSpeeds(0.05, 0);
+          kickerConfig.CurrentLimits.SupplyCurrentLimit = 3;
+          kickerMotor.getConfigurator().apply(kickerConfig);
+          transferSubsystem.setSpeeds(0.1, 0.03);
         });
   }
 }
