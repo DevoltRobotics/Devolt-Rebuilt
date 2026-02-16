@@ -110,11 +110,11 @@ public class RobotContainer {
         joystick.leftBumper().onTrue(transferSubsystem.TransferShootCMD(transferSubsystem));
         joystick.leftBumper().onFalse(transferSubsystem.StopTransferCMD(transferSubsystem));
 
-        joystick.rightStick().onTrue(shooterSubsystem.SetTurretPos(0));
-        joystick.leftStick().onTrue(shooterSubsystem.SetTurretPos(90));
+        joystick.rightStick().onTrue(shooterSubsystem.SetTurretPosCMD(0));
+        joystick.leftStick().onTrue(shooterSubsystem.SetTurretPosCMD(90));
 
-        povRight.onTrue(shooterSubsystem.SetVelocity(30));
-        povLeft.onTrue(shooterSubsystem.SetVelocity(0));
+        povRight.onTrue(shooterSubsystem.SetVelocityCMD(30));
+        povLeft.onTrue(shooterSubsystem.SetVelocityCMD(0));
 
 
     }

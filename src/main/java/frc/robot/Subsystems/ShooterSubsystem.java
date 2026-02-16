@@ -21,10 +21,15 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.interpolation.Interpolatable;
+import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.CANId.CAN_s2;
 
@@ -38,6 +43,14 @@ public class ShooterSubsystem extends SubsystemBase {
 
   private VelocityVoltage Velocity = new VelocityVoltage(0);
 
+
+  InterpolatingDoubleTreeMap rpsMap = new InterpolatingDoubleTreeMap();
+  double flywheelRadius = 0.3; //meters
+
+  Translation2d LtargetVector = new Translation2d();
+  double Ldistance;
+  double SOTFLturretLAngle;
+  double SOTFLrequiredRSpeed;
 
   double Goal_X_Red = 0;
   double Goal_Y_Red = 0;
@@ -70,6 +83,23 @@ public class ShooterSubsystem extends SubsystemBase {
   
   /** Creates a new ShooterSubsystem. */
   public ShooterSubsystem(Pose2d positionInRobot,ChassisSpeeds Speed) {
+
+
+    if ( DriverStation.getAlliance().get() == Alliance.Red ) {
+      Goal_X = Goal_X_Red;
+      Goal_Y = Goal_Y_Red;
+    }else if (DriverStation.getAlliance().get() == Alliance.Blue) {
+      Goal_X = Goal_X_Blue;
+      Goal_Y = Goal_Y_Blue;
+    }else{
+      Goal_X = Goal_X_Red;
+      Goal_Y = Goal_Y_Red;
+    }
+
+    rpsMap.put(1.0, 20d); // 1 metro → 20 rps
+    rpsMap.put(20.0, 40d);
+    rpsMap.put(38.0, 80d);
+
     
     TurretConfig
       .inverted(true)
@@ -96,7 +126,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
-    Translation2d LturretFieldPosition = positionInRobot.getTranslation().plus( LturretOffset.rotateBy(positionInRobot.getRotation()));
+Translation2d LturretFieldPosition = positionInRobot.getTranslation().plus( LturretOffset.rotateBy(positionInRobot.getRotation()));
 
  TurretL_X = LturretFieldPosition.getX();
  TurretL_Y = LturretFieldPosition.getY();
@@ -106,10 +136,10 @@ public class ShooterSubsystem extends SubsystemBase {
   Translation2d LtargetPosition = new Translation2d(targetTurretL_X, targetTurretL_Y);
 
   // Calculate the ideal exit velocity magnitude (based on distance)
-   double Ldistance = LtargetPosition.getNorm();
+   Ldistance = LtargetPosition.getNorm();
    double LidealSpeed = getShooterSpeedForDistance(Ldistance);
 
-   Translation2d LtargetVector = LtargetPosition.div(Ldistance).times(LidealSpeed);
+   LtargetVector = LtargetPosition.div(Ldistance).times(LidealSpeed);
 
    double vel_x = Speed.vx;
    double vel_y = Speed.vy;
@@ -118,8 +148,8 @@ public class ShooterSubsystem extends SubsystemBase {
   
   Translation2d LshotVector = LtargetVector.minus(robotVelocity);
 
-    double LturretLAngle = LshotVector.getAngle().getDegrees();
-    double LrequiredRSpeed = LshotVector.getNorm(); // en M/S
+    SOTFLturretLAngle = LshotVector.getAngle().getDegrees();
+    SOTFLrequiredRSpeed = LshotVector.getNorm(); // en M/S
 
 
     Lflywheel.setControl(Velocity.withVelocity(desiredVelocity));
@@ -145,17 +175,35 @@ public class ShooterSubsystem extends SubsystemBase {
     desiredAngle = -angle;
   }
 
-  public Command SetTurretPos(double Pos){
+  public Command SetTurretPosCMD(double Pos){
       return new InstantCommand(()->{ setAngle(Pos);},this);
   }
-  public Command SetVelocity(double Vel){
+  public Command SetVelocityCMD(double Vel){
     return new InstantCommand(()->{ setVelocity(Vel);});
-}
+  }
+
+  public Command ShootToTargetCMD(){
+    return new RunCommand(()->{
+      setAngle(LtargetVector.getAngle().getDegrees());
+      setVelocity(rpsMap.get(Ldistance));
+    });
+  }
+
+  public Command SOTFCMD(){
+    return new RunCommand(()->{
+      double rps = SOTFLrequiredRSpeed/(2*Math.PI*flywheelRadius);
+
+      setAngle(SOTFLturretLAngle);
+      setVelocity(rps);
+    });
+  }
 
   //velocidad de pelota en M/S
   public double getShooterSpeedForDistance(double distance){
 
-    return 10;
+    double rps = rpsMap.get(distance);
+    double speed = rps * 2 * Math.PI * flywheelRadius; //in m/s
+    return speed;
   }
 
 }
