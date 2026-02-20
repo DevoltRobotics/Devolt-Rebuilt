@@ -10,7 +10,6 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -19,11 +18,12 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
-
+import frc.robot.Constants.CANId.CAN_s2;
 import frc.robot.Subsystems.CommandSwerveDrivetrain;
 import frc.robot.Subsystems.IntakeSubsystem;
 import frc.robot.Subsystems.ShooterSubsystem;
 import frc.robot.Subsystems.TransferSubsystem;
+import frc.robot.Subsystems.TurretSubsystem;
 
 public class RobotContainer {
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -46,13 +46,18 @@ public class RobotContainer {
 
     public final TransferSubsystem transferSubsystem = new TransferSubsystem();
 
-    public final ShooterSubsystem shooterSubsystem = new ShooterSubsystem(drivetrain.getState().Pose, drivetrain.getState().Speeds);
+    public final ShooterSubsystem shooterLeftSubsystem = new ShooterSubsystem(CAN_s2.LFlywheelCan, drivetrain.getState().Pose);
+    public final TurretSubsystem turretLeftSubsystem = new TurretSubsystem(CAN_s2.LTurretCan);
+
+    //public final ShooterSubsystem shooterRightSubsystem = new ShooterSubsystem(CAN_s2.RFlywheelCan, drivetrain.getState().Pose);
+    //public final TurretSubsystem turretRightSubsystem = new TurretSubsystem(CAN_s2.RTurretCan);
     
     public RobotContainer() {
         configureBindings();
         CommandScheduler.getInstance().registerSubsystem(intakeSubsystem);
         CommandScheduler.getInstance().registerSubsystem(transferSubsystem);
-        CommandScheduler.getInstance().registerSubsystem(shooterSubsystem);
+        CommandScheduler.getInstance().registerSubsystem(shooterLeftSubsystem);
+        CommandScheduler.getInstance().registerSubsystem(turretLeftSubsystem);
     }
 
     private void configureBindings() {
@@ -110,11 +115,13 @@ public class RobotContainer {
         joystick.leftBumper().onTrue(transferSubsystem.TransferShootCMD(transferSubsystem));
         joystick.leftBumper().onFalse(transferSubsystem.StopTransferCMD(transferSubsystem));
 
-        joystick.rightStick().onTrue(shooterSubsystem.SetTurretPosCMD(0));
-        joystick.leftStick().onTrue(shooterSubsystem.SetTurretPosCMD(90));
+        // joystick.rightStick().onTrue(turretLeftSubsystem.SetTurretPosCMD(0));
+        // joystick.leftStick().onTrue(turretLeftSubsystem.SetTurretPosCMD(90));
 
-        povRight.onTrue(shooterSubsystem.SetVelocityCMD(30));
-        povLeft.onTrue(shooterSubsystem.SetVelocityCMD(0));
+        povRight.onTrue(shooterLeftSubsystem.SetVelocityCMD(90));
+        povLeft.onTrue(shooterLeftSubsystem.SetVelocityCMD(60));
+
+        joystick.a().onTrue(turretLeftSubsystem.resetOffsetCMD());
 
 
     }
