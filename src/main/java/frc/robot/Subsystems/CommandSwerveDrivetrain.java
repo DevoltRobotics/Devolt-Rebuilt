@@ -5,6 +5,8 @@ import static edu.wpi.first.units.Units.*;
 
 import java.util.function.Supplier;
 
+import org.littletonrobotics.junction.Logger;
+
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
@@ -24,7 +26,6 @@ import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -283,12 +284,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         }
 
         visionEstimate();
-       double[] robotpose = {getState().Pose.getX(), getState().Pose.getY(), getState().Pose.getRotation().getRadians()};
-        SmartDashboard.putNumberArray("robotpose", robotpose);
 
-        
-
-        
+        Logger.recordOutput("Robot Pose", getState().Pose);
     }
 
     private void startSimThread() {
@@ -341,16 +338,16 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public void visionEstimate(){
-        LimelightHelpers.setPipelineIndex("backll", 0);
-        LimelightHelpers.setPipelineIndex("frontll", 0);
+        LimelightHelpers.setPipelineIndex("l1", 0);
+        LimelightHelpers.setPipelineIndex("l2", 0);
 
         LimelightHelpers.SetRobotOrientation("backll",getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
         LimelightHelpers.SetRobotOrientation("frontll",getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
 
         LimelightHelpers.PoseEstimate mt2;
-        LimelightHelpers.PoseEstimate mt2f;
-        mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("backll");
-        mt2f = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("frontll");
+        LimelightHelpers.PoseEstimate mt2l;
+        mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("frontll");
+        mt2l = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("backll");
 
         boolean rejectUpdate = false;
 

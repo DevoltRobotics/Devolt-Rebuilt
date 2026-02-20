@@ -11,12 +11,19 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
-
+import frc.robot.Constants.CANId.CAN_s2;
 import frc.robot.Subsystems.CommandSwerveDrivetrain;
+import frc.robot.Subsystems.IntakeSubsystem;
+import frc.robot.Subsystems.ShooterSubsystem;
+import frc.robot.Subsystems.TransferSubsystem;
+import frc.robot.Subsystems.TurretSubsystem;
 
 public class RobotContainer {
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -31,12 +38,26 @@ public class RobotContainer {
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
-    private final CommandXboxController joystick = new CommandXboxController(0);
+    public final CommandXboxController joystick = new CommandXboxController(0);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+
+    public final IntakeSubsystem intakeSubsystem = new IntakeSubsystem();
+
+    public final TransferSubsystem transferSubsystem = new TransferSubsystem();
+
+    public final ShooterSubsystem shooterLeftSubsystem = new ShooterSubsystem(CAN_s2.LFlywheelCan, drivetrain.getState().Pose);
+    public final TurretSubsystem turretLeftSubsystem = new TurretSubsystem(CAN_s2.LTurretCan);
+
+    //public final ShooterSubsystem shooterRightSubsystem = new ShooterSubsystem(CAN_s2.RFlywheelCan, drivetrain.getState().Pose);
+    //public final TurretSubsystem turretRightSubsystem = new TurretSubsystem(CAN_s2.RTurretCan);
     
     public RobotContainer() {
         configureBindings();
+        CommandScheduler.getInstance().registerSubsystem(intakeSubsystem);
+        CommandScheduler.getInstance().registerSubsystem(transferSubsystem);
+        CommandScheduler.getInstance().registerSubsystem(shooterLeftSubsystem);
+        CommandScheduler.getInstance().registerSubsystem(turretLeftSubsystem);
     }
 
     private void configureBindings() {
@@ -71,9 +92,38 @@ public class RobotContainer {
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // reset the field-centric heading on left bumper press
-        joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+       // joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
         drivetrain.registerTelemetry(logger::telemeterize);
+
+        joystick.rightBumper().onTrue(new ParallelCommandGroup(
+        intakeSubsystem.pivotDownCMD(),    
+        intakeSubsystem.IntakeinCMD(intakeSubsystem)));
+
+        joystick.rightBumper().onFalse(intakeSubsystem.pivotDownSafeCMD());
+    
+        joystick.rightBumper().onFalse(intakeSubsystem.IntakeStopCMD(intakeSubsystem));
+
+        Trigger povUp = new Trigger(() -> joystick.getHID().getPOV() == 1);
+        Trigger povDown = new Trigger(() -> joystick.getHID().getPOV() == 4);
+        Trigger povRight = new Trigger(() -> joystick.getHID().getPOV() == 2);
+        Trigger povLeft = new Trigger(() -> joystick.getHID().getPOV() == 8);
+
+        povDown.onTrue(intakeSubsystem.pivotDownSafeCMD());
+        povUp.onTrue(intakeSubsystem.pivotUpCMD());
+
+        joystick.leftBumper().onTrue(transferSubsystem.TransferShootCMD(transferSubsystem));
+        joystick.leftBumper().onFalse(transferSubsystem.StopTransferCMD(transferSubsystem));
+
+        // joystick.rightStick().onTrue(turretLeftSubsystem.SetTurretPosCMD(0));
+        // joystick.leftStick().onTrue(turretLeftSubsystem.SetTurretPosCMD(90));
+
+        povRight.onTrue(shooterLeftSubsystem.SetVelocityCMD(90));
+        povLeft.onTrue(shooterLeftSubsystem.SetVelocityCMD(60));
+
+        joystick.a().onTrue(turretLeftSubsystem.resetOffsetCMD());
+
+
     }
 
     public Command getAutonomousCommand() {

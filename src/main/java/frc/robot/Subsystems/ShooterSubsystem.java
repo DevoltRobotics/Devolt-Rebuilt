@@ -4,53 +4,69 @@
 
 package frc.robot.Subsystems;
 
+import com.ctre.phoenix6.CANBus;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
-import com.revrobotics.spark.SparkMax;
-
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.controller.SimpleMotorFeedforward;
+import com.ctre.phoenix6.signals.InvertedValue;
+import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class ShooterSubsystem extends SubsystemBase {
 
-  private TalonFX flywheel;
-  private SparkMax turret;
+  private TalonFX Lflywheel;
+
+  private final TalonFXConfiguration FlywheelConfig = new TalonFXConfiguration();
 
   private VelocityVoltage Velocity = new VelocityVoltage(0);
+  
 
- 
-
+  Pose2d positionInRobot = new Pose2d();
+  ChassisSpeeds Speed = new ChassisSpeeds();
 
   private double desiredVelocity;
-  private double desiredAngle;
 
-  SimpleMotorFeedforward feedforward = new SimpleMotorFeedforward(0, 0);
+  double TurretOut = 0;
 
 
-  PIDController turretPidController = new PIDController(.01, 0, 0);
-  
   /** Creates a new ShooterSubsystem. */
-  public ShooterSubsystem(TalonFX flywheelMotor, SparkMax turretMotor, Pose2d positionInRobot ) {
-    this.flywheel = flywheelMotor;
-    this.turret = turretMotor;
+  public ShooterSubsystem(int canId, Pose2d positionInRobot) {
+    Lflywheel = new TalonFX(canId, CANBus.systemCore(2));
 
-    
+    var table = NetworkTableInstance.getDefault().getTable("shooter");
+    table.getDoubleTopic("CurrentTspeed").publish().set(0);
 
+    FlywheelConfig.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    FlywheelConfig.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
+    FlywheelConfig.CurrentLimits.SupplyCurrentLimitEnable = true;
+    FlywheelConfig.CurrentLimits.SupplyCurrentLimit = 35;
+    FlywheelConfig.Slot0.kP = 0.15;
+    FlywheelConfig.Slot0.kV = 0.115;
+    FlywheelConfig.Slot0.kS = 0.4;
+    Lflywheel.getConfigurator().apply(FlywheelConfig);
+
+    this.positionInRobot = positionInRobot;
+    this.Speed = Speed;
   }
 
   @Override
   public void periodic() {
-    flywheel.setControl(Velocity.withVelocity(desiredVelocity));
-    turretPidController.setSetpoint(desiredAngle);
-    turret.set(turretPidController.calculate(turret.getEncoder().getPosition()));
+    Lflywheel.setControl(Velocity.withVelocity(desiredVelocity));
   }
 
-  public void setVelocity(double velocity){
+  public void setVelocity(double velocity) {
     desiredVelocity = velocity;
   }
-  public void setAngle(double angle){
-    desiredAngle = angle;
+
+  public Command SetVelocityCMD(double Vel) {
+    return new InstantCommand(() -> {
+      setVelocity(Vel);
+    });
   }
+
 }

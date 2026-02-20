@@ -3,6 +3,7 @@ package frc.robot;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 
 
 public class Constants {
@@ -10,6 +11,12 @@ public class Constants {
     public static final class PoseinField{ //poses para autoacomodación
         public static final Pose2d frontofapriltag = new Pose2d(7.0, 4.0, new Rotation2d(0));
         public static final Pose2d humanPlayer = new Pose2d(0, 0, new Rotation2d(0));
+
+    }
+
+    public static final class TurretsPos{
+        public static final Translation2d LeftTurretOffset = new Translation2d(0.165, 0.152); 
+        public static final Translation2d RightTurretOffset = new Translation2d(0.165, -0.152); 
 
     }
 
@@ -33,17 +40,17 @@ public class Constants {
         }
         public class CAN_s1{
 
-            public static final int PivotCan = 2;
-            public static final int TransferCan = 3;
+            public static final int PivotCan = 3;
+            public static final int TransferCan = 2;
             public static final int IntakeCan = 4;
         } 
 
         public class CAN_s2{
-            public static final int RTurretCan = 1;
-            public static final int RFlywheelCan = 2;
+            public static final int LTurretCan = 1;
+            public static final int RFlywheelCan = 5;
             public static final int KickerCan = 3;
-            public static final int LTurretCan = 4;
-            public static final int LFlywheelCan = 5;
+            public static final int RTurretCan = 4;
+            public static final int LFlywheelCan = 2;
         }
     }
 

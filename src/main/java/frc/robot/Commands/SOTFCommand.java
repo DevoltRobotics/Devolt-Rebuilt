@@ -1,0 +1,89 @@
+package frc.robot.Commands;
+
+import java.util.Optional;
+
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.ShooterController;
+import frc.robot.ShooterController.ShooterResult;
+import frc.robot.Subsystems.CommandSwerveDrivetrain;
+import frc.robot.Subsystems.ShooterSubsystem;
+import frc.robot.Subsystems.TurretSubsystem;
+
+public class SOTFCommand extends Command {
+
+    CommandSwerveDrivetrain drivetrain;
+
+    ShooterSubsystem shooter;
+    TurretSubsystem turret;
+
+    Translation2d turretOffset;
+
+    double Goal_X_Red = 11.920;
+    double Goal_Y_Red = 4.035;
+  
+    double Goal_X_Blue = 4.634;
+    double Goal_Y_Blue = 4.035;
+  
+    double Goal_X = 0;
+    double Goal_Y = 0;
+
+    private boolean getAlliance = false;
+
+    public SOTFCommand(
+        CommandSwerveDrivetrain drivetrain, 
+        ShooterSubsystem shooterSubsystem,
+        TurretSubsystem turretSubsystem,
+        Translation2d turretOffset
+    ) {
+        this.drivetrain = drivetrain;
+        this.shooter = shooterSubsystem;
+        this.turret = turretSubsystem;
+        this.turretOffset = turretOffset;
+        addRequirements(shooter, turret);
+    }
+
+    @Override
+    public void execute() {
+         Optional<Alliance> alliance = DriverStation.getAlliance();
+
+    if (alliance.isPresent() && !getAlliance) {
+      if (alliance.get() == Alliance.Red) {
+        Goal_X = Goal_X_Red;
+        Goal_Y = Goal_Y_Red;
+        getAlliance = true;
+      } else if (alliance.get() == Alliance.Blue) {
+        Goal_X = Goal_X_Blue;
+        Goal_Y = Goal_Y_Blue;
+        getAlliance = true;
+      } else {
+        Goal_X = Goal_X_Red;
+        Goal_Y = Goal_Y_Red;
+      }
+    }
+        Pose2d pose = drivetrain.getState().Pose;
+        ChassisSpeeds speeds = drivetrain.getState().Speeds;
+        Translation2d turretFieldPos = pose.getTranslation().plus(turretOffset.rotateBy(pose.getRotation()));
+
+
+        ShooterResult result = ShooterController.calculate(
+            turretFieldPos, 
+            new Translation2d(speeds.vx, speeds.vy), 
+            new Translation2d(Goal_X, Goal_Y), 
+            0
+        );
+
+        shooter.setVelocity(result.requiredRps());
+        turret.setAngle(result.turretAngle().getDegrees());
+    }
+
+    @Override
+    public boolean isFinished() {
+        return false;
+    }
+
+}
