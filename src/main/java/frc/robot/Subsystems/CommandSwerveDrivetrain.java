@@ -33,6 +33,7 @@ import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.LimelightHelpers;
 import frc.robot.TunerConstants;
+import frc.robot.Constants.LimelightConstants;
 import frc.robot.TunerConstants.TunerSwerveDrivetrain;
 
 /**
@@ -338,21 +339,23 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public void visionEstimate(){
-        LimelightHelpers.setPipelineIndex("l1", 0);
-        LimelightHelpers.setPipelineIndex("l2", 0);
+        LimelightHelpers.setPipelineIndex(LimelightConstants.backLimelightName, 0);
+        LimelightHelpers.setPipelineIndex(LimelightConstants.frontLimelightName, 0);
 
-        LimelightHelpers.SetRobotOrientation("backll",getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
-        LimelightHelpers.SetRobotOrientation("frontll",getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
+        LimelightHelpers.SetRobotOrientation(LimelightConstants.backLimelightName,getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
+        LimelightHelpers.SetRobotOrientation(LimelightConstants.frontLimelightName,getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
 
         LimelightHelpers.PoseEstimate mt2;
-        LimelightHelpers.PoseEstimate mt2l;
-        mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("frontll");
-        mt2l = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("backll");
+        LimelightHelpers.PoseEstimate mt2f;
+        mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(LimelightConstants.backLimelightName);
+        mt2f = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(LimelightConstants.frontLimelightName);
 
         boolean rejectUpdate = false;
+        boolean rejectUpdatef = false;
 
         if (Math.abs(getState().Speeds.omega)> 360){
             rejectUpdate = true;
+            rejectUpdatef = true;
         }
         if (mt2 == null) {
             rejectUpdate = true;
@@ -362,6 +365,17 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             
         if (!rejectUpdate){
             addVisionMeasurement(mt2.pose, mt2.timestampSeconds);
+
+            }
+            if (mt2f == null) {
+                rejectUpdatef = true;
+            } else if (mt2f.tagCount == 0) {
+                rejectUpdatef = true;
+            }
+                
+            if (!rejectUpdatef){
+                addVisionMeasurement(mt2f.pose, mt2f.timestampSeconds);
+
         }
     }
     @SuppressWarnings("resource")

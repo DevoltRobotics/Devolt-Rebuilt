@@ -54,4 +54,9 @@ public class Constants {
         }
     }
 
+    public class LimelightConstants{
+        public static final String backLimelightName = "limelight-backll";
+        public static final String frontLimelightName = "limelight-frontll"; 
+    }
+
 }
