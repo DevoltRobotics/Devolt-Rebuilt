@@ -341,16 +341,16 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public void visionEstimate(){
-        LimelightHelpers.setPipelineIndex("l1", 0);
-        LimelightHelpers.setPipelineIndex("l2", 0);
+        LimelightHelpers.setPipelineIndex("backll", 0);
+        LimelightHelpers.setPipelineIndex("frontll", 0);
 
-        LimelightHelpers.SetRobotOrientation("l1",getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
-        LimelightHelpers.SetRobotOrientation("l2",getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
+        LimelightHelpers.SetRobotOrientation("backll",getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
+        LimelightHelpers.SetRobotOrientation("frontll",getState().Pose.getRotation().getDegrees(),0.0,0.0,0.0,0.0, 0.0);
 
         LimelightHelpers.PoseEstimate mt2;
-        LimelightHelpers.PoseEstimate mt2l;
-        mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("l1");
-        mt2l = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("l2");
+        LimelightHelpers.PoseEstimate mt2f;
+        mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("backll");
+        mt2f = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("frontll");
 
         boolean rejectUpdate = false;
 
