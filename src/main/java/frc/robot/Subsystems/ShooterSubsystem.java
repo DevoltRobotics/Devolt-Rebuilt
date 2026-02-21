@@ -13,6 +13,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -38,9 +39,6 @@ public class ShooterSubsystem extends SubsystemBase {
   public ShooterSubsystem(int canId, Pose2d positionInRobot) {
     Lflywheel = new TalonFX(canId, CANBus.systemCore(2));
 
-    var table = NetworkTableInstance.getDefault().getTable("shooter");
-    table.getDoubleTopic("CurrentTspeed").publish().set(0);
-
     FlywheelConfig.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     FlywheelConfig.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
     FlywheelConfig.CurrentLimits.SupplyCurrentLimitEnable = true;
@@ -51,12 +49,16 @@ public class ShooterSubsystem extends SubsystemBase {
     Lflywheel.getConfigurator().apply(FlywheelConfig);
 
     this.positionInRobot = positionInRobot;
-    this.Speed = Speed;
+    
+
+    setName("Turret" + canId);
   }
 
   @Override
   public void periodic() {
     Lflywheel.setControl(Velocity.withVelocity(desiredVelocity));
+    SmartDashboard.putNumber("Shooter/Target vel", desiredVelocity);
+
   }
 
   public void setVelocity(double velocity) {

@@ -19,7 +19,9 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
+import frc.robot.Commands.SOTFCommand;
 import frc.robot.Constants.PoseinField;
+import frc.robot.Constants.TurretsPos;
 import frc.robot.Constants.CANId.CAN_s2;
 import frc.robot.Subsystems.CommandSwerveDrivetrain;
 import frc.robot.Subsystems.IntakeSubsystem;
@@ -49,7 +51,7 @@ public class RobotContainer {
     public final TransferSubsystem transferSubsystem = new TransferSubsystem();
 
     public final ShooterSubsystem shooterLeftSubsystem = new ShooterSubsystem(CAN_s2.LFlywheelCan, drivetrain.getState().Pose);
-    public final TurretSubsystem turretLeftSubsystem = new TurretSubsystem(CAN_s2.LTurretCan);
+    public final TurretSubsystem turretLeftSubsystem = new TurretSubsystem(CAN_s2.LTurretCan, TurretsPos.LeftTurretOffset);
 
     //public final ShooterSubsystem shooterRightSubsystem = new ShooterSubsystem(CAN_s2.RFlywheelCan, drivetrain.getState().Pose);
     //public final TurretSubsystem turretRightSubsystem = new TurretSubsystem(CAN_s2.RTurretCan);
@@ -88,10 +90,11 @@ public class RobotContainer {
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
-        joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
+
+       /*  joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
         joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
         joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-        joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+        joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));*/
 
         // reset the field-centric heading on left bumper press
        // joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
@@ -117,15 +120,18 @@ public class RobotContainer {
         joystick.leftBumper().onTrue(transferSubsystem.TransferShootCMD(transferSubsystem));
         joystick.leftBumper().onFalse(transferSubsystem.StopTransferCMD(transferSubsystem));
 
-        // joystick.rightStick().onTrue(turretLeftSubsystem.SetTurretPosCMD(0));
-        // joystick.leftStick().onTrue(turretLeftSubsystem.SetTurretPosCMD(90));
+        joystick.rightStick().onTrue(turretLeftSubsystem.SetTurretPosCMD(0));
+        joystick.leftStick().onTrue(turretLeftSubsystem.SetTurretPosCMD(90));
 
         povRight.onTrue(shooterLeftSubsystem.SetVelocityCMD(90));
         povLeft.onTrue(shooterLeftSubsystem.SetVelocityCMD(60));
 
         joystick.a().onTrue(turretLeftSubsystem.resetOffsetCMD());
 
-        joystick.y().onTrue(new InstantCommand(()->drivetrain.resetPose(PoseinField.frontofapriltag)));
+        joystick.x().onTrue(new SOTFCommand(drivetrain, shooterLeftSubsystem, turretLeftSubsystem));
+
+        joystick.y().onTrue(new InstantCommand(()->drivetrain.resetRotation(new Rotation2d(0))));
+
 
 
     }

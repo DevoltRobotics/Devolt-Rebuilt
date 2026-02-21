@@ -3,6 +3,8 @@ package frc.robot;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -12,29 +14,51 @@ import edu.wpi.first.math.interpolation.InverseInterpolator;
 
 public class ShooterController {
 
+    // Distance (m) -> {RPS, timeOfFlight (s)}
     private static final HashMap<Double, ShooterParams> SHOOTER_MAP = new HashMap<>();
 
-    // Example LUT: distance (m) → {RPS, time of flight (s)}
-    private static final InterpolatingTreeMap<Double, ShooterParams> SHOOTER_INTERP_MAP = new InterpolatingTreeMap<>(
+    // Interpolation for distance -> ShooterParams
+    private static final InterpolatingTreeMap<Double, ShooterParams> SHOOTER_INTERP_MAP =
+        new InterpolatingTreeMap<>(
             InverseInterpolator.forDouble(),
-            (startParams, endParams, t) -> new ShooterParams( // interpolador del ShooterParams
-                MathUtil.interpolate(startParams.rps, endParams.rps, t),
-                MathUtil.interpolate(startParams.timeOfFlight, endParams.timeOfFlight, t)
+            (start, end, t) -> new ShooterParams(
+                MathUtil.interpolate(start.rps, end.rps, t),
+                MathUtil.interpolate(start.timeOfFlight, end.timeOfFlight, t)
             )
-    );
+        );
+
+    /**
+     * Reverse map: (horizontal muzzle velocity estimate) -> distance
+     * Must be ORDERED, so TreeMap, not HashMap.
+     */
+    private static final NavigableMap<Double, Double> VELOCITY_TO_DISTANCE = new TreeMap<>();
+
+    // LUT bounds (set to your min/max distance keys)
+    private static final double MIN_DISTANCE = 2.0;
+    private static final double MAX_DISTANCE = 5.5;
 
     static {
-        SHOOTER_MAP.put(2d, new ShooterParams(47.0, 0.42));
-        SHOOTER_MAP.put(2.5, new ShooterParams(48.0, 0.51));
-        SHOOTER_MAP.put(3d, new ShooterParams(50.0, 0.58));
-        SHOOTER_MAP.put(3.5, new ShooterParams(54.0, 0.65));
-        SHOOTER_MAP.put(4d, new ShooterParams(58.0, 0.71));
-        SHOOTER_MAP.put(4.5, new ShooterParams(61.0, 0.78));
-        SHOOTER_MAP.put(5d, new ShooterParams(63, 0.84));
-        SHOOTER_MAP.put(5.5, new ShooterParams(65, 0.91));
+        SHOOTER_MAP.put(2.0,  new ShooterParams(47.0, 0.42));
+        SHOOTER_MAP.put(2.5,  new ShooterParams(48.0, 0.51));
+        SHOOTER_MAP.put(3.0,  new ShooterParams(50.0, 0.58));
+        SHOOTER_MAP.put(3.5,  new ShooterParams(54.0, 0.65));
+        SHOOTER_MAP.put(4.0,  new ShooterParams(58.0, 0.71));
+        SHOOTER_MAP.put(4.5,  new ShooterParams(61.0, 0.78));
+        SHOOTER_MAP.put(5.0,  new ShooterParams(63.0, 0.84));
+        SHOOTER_MAP.put(5.5,  new ShooterParams(65.0, 0.91));
 
-        for (Entry<Double, ShooterParams> entry : SHOOTER_MAP.entrySet()) {
-            SHOOTER_INTERP_MAP.put(entry.getKey(), entry.getValue());
+        // Fill distance interpolation map
+        for (Entry<Double, ShooterParams> e : SHOOTER_MAP.entrySet()) {
+            SHOOTER_INTERP_MAP.put(e.getKey(), e.getValue());
+        }
+
+        // Build ordered reverse LUT: velocity -> distance
+        // Using vel = distance / ToF as your "baseline horizontal velocity" for each entry.
+        for (Entry<Double, ShooterParams> e : SHOOTER_MAP.entrySet()) {
+            double dist = e.getKey();
+            double tof  = e.getValue().timeOfFlight;
+            double vel  = dist / tof;
+            VELOCITY_TO_DISTANCE.put(vel, dist);
         }
     }
 
@@ -43,72 +67,87 @@ public class ShooterController {
             Translation2d robotVelocity,
             Translation2d goalPosition,
             double latencyCompensation) {
-        // 1. Project future position
-        Translation2d futurePos = robotPosition.plus(
-                robotVelocity.times(latencyCompensation));
 
-        // 2. Get target vector
+        // 1) Future position (optional)
+        Translation2d futurePos = robotPosition.plus(robotVelocity.times(latencyCompensation));
+
+        // 2) Vector to goal in FIELD frame
         Translation2d toGoal = goalPosition.minus(futurePos);
         double distance = toGoal.getNorm();
+
+        // Guard
+        if (distance < 1e-6) {
+            return new ShooterResult(new Rotation2d(), 0.0);
+        }
+
+        // 3) Clamp distance to LUT range & get baseline params from LUT
+        double clampedDist = MathUtil.clamp(distance, MIN_DISTANCE, MAX_DISTANCE);
+        ShooterParams baseline = SHOOTER_INTERP_MAP.get(clampedDist);
+        if (baseline == null) {
+            baseline = SHOOTER_INTERP_MAP.get(MIN_DISTANCE);
+        }
+
+        // 4) Baseline "shot" horizontal velocity (your model)
+        double baselineVelocity = clampedDist / baseline.timeOfFlight;
+
+        // 5) Build desired target velocity vector toward goal
         Translation2d targetDirection = toGoal.div(distance);
+        Translation2d targetVelocity  = targetDirection.times(baselineVelocity);
 
-        // 3. Look up baseline velocity from table
-        ShooterParams baseline = SHOOTER_MAP.get(distance);
-        double baselineVelocity = distance / baseline.timeOfFlight;
-
-        // 4. Build target velocity vector
-        Translation2d targetVelocity = targetDirection.times(baselineVelocity);
-
-        // 5. THE MAGIC: subtract robot velocity
+        // 6) Compensate for robot motion (SOTF)
         Translation2d shotVelocity = targetVelocity.minus(robotVelocity);
 
-        // 6. Extract results
-        Rotation2d turretAngle = shotVelocity.getAngle();
+        // 7) Turret field angle from compensated shot vector
+        Rotation2d turretFieldAngle = shotVelocity.getAngle();
+
+        // 8) Convert compensated required velocity magnitude back to "effective distance"
+        // so we can pick an RPS from distance LUT
         double requiredVelocity = shotVelocity.getNorm();
-
-        // 7. Use table in reverse: velocity → effective distance → RPS
         double effectiveDistance = velocityToEffectiveDistance(requiredVelocity);
-        double requiredRps = SHOOTER_MAP.get(effectiveDistance).rps;
 
-        return new ShooterResult(turretAngle, requiredRps);
+        // 9) Clamp & get RPS from interpolated distance LUT
+        double clampedEff = MathUtil.clamp(effectiveDistance, MIN_DISTANCE, MAX_DISTANCE);
+        double requiredRps = SHOOTER_INTERP_MAP.get(clampedEff).rps;
+
+        return new ShooterResult(turretFieldAngle, requiredRps);
     }
 
-    public static double getHorizontalVelocity(double distance) {
-        ShooterParams params = SHOOTER_MAP.get(distance);
-        return distance / params.timeOfFlight;
-    }
-
+    /**
+     * Converts a required horizontal muzzle velocity to an "effective distance"
+     * using an ORDERED velocity->distance LUT, with interpolation.
+     */
     public static double velocityToEffectiveDistance(double velocity) {
-        // Binary search or iterate through table to find distance
-        // where (distance / ToF) = velocity
-        // Most InterpolatingTreeMap implementations support inverse lookup
-        // or you can build a reverse map: velocity → distance
+        // Find nearest velocities around the requested value
+        Map.Entry<Double, Double> floor = VELOCITY_TO_DISTANCE.floorEntry(velocity);
+        Map.Entry<Double, Double> ceil  = VELOCITY_TO_DISTANCE.ceilingEntry(velocity);
 
-        for (Map.Entry<Double, ShooterParams> entry : SHOOTER_MAP.entrySet()) {
-            double dist = entry.getKey();
-            double vel = dist / entry.getValue().timeOfFlight;
-            if (vel >= velocity) {
-                return dist; // Interpolate for better accuracy
-            }
+        if (floor == null) {
+            return VELOCITY_TO_DISTANCE.firstEntry().getValue();
+        }
+        if (ceil == null) {
+            return VELOCITY_TO_DISTANCE.lastEntry().getValue();
+        }
+        if (ceil.getKey().equals(floor.getKey())) {
+            return ceil.getValue();
         }
 
-        // find max
-        double maxDist = 0;
-        for (double dist : SHOOTER_MAP.keySet()) {
-            if (dist > maxDist) {
-                maxDist = dist;
-            }
-        }
+        // Interpolate distance between the two surrounding velocity keys
+        double v0 = floor.getKey();
+        double d0 = floor.getValue();
+        double v1 = ceil.getKey();
+        double d1 = ceil.getValue();
 
-        return maxDist; // If velocity is higher than any in the table, return max distance
+        double t = (velocity - v0) / (v1 - v0);
+        return MathUtil.interpolate(d0, d1, t);
     }
 
     public static double calculateAdjustedRps(double requiredVelocity) {
         double effectiveDistance = velocityToEffectiveDistance(requiredVelocity);
-        return SHOOTER_INTERP_MAP.get(effectiveDistance).rps;
+        double clampedEff = MathUtil.clamp(effectiveDistance, MIN_DISTANCE, MAX_DISTANCE);
+        return SHOOTER_INTERP_MAP.get(clampedEff).rps;
     }
 
     public static record ShooterParams(double rps, double timeOfFlight) {}
 
-    public static record ShooterResult(Rotation2d turretAngle, double requiredRps) {}
+    public static record ShooterResult(Rotation2d turretFieldAngle, double requiredRps) {}
 }
