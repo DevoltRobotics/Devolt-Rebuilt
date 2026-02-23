@@ -35,17 +35,21 @@ public class ShooterController {
 
     // LUT bounds (set to your min/max distance keys)
     private static final double MIN_DISTANCE = 2.0;
-    private static final double MAX_DISTANCE = 5.5;
+    private static final double MAX_DISTANCE = 9.3;
 
     static {
-        SHOOTER_MAP.put(2.0,  new ShooterParams(47.0, 0.42));
-        SHOOTER_MAP.put(2.5,  new ShooterParams(48.0, 0.51));
-        SHOOTER_MAP.put(3.0,  new ShooterParams(50.0, 0.58));
-        SHOOTER_MAP.put(3.5,  new ShooterParams(54.0, 0.65));
-        SHOOTER_MAP.put(4.0,  new ShooterParams(58.0, 0.71));
-        SHOOTER_MAP.put(4.5,  new ShooterParams(61.0, 0.78));
-        SHOOTER_MAP.put(5.0,  new ShooterParams(63.0, 0.84));
-        SHOOTER_MAP.put(5.5,  new ShooterParams(65.0, 0.91));
+        SHOOTER_MAP.put(2.0,  new ShooterParams(45.5, 0.6));
+        SHOOTER_MAP.put(2.5,  new ShooterParams(46.0, 0.83));
+        SHOOTER_MAP.put(3.0,  new ShooterParams(48.5, 0.88));
+        SHOOTER_MAP.put(3.5,  new ShooterParams(51.3, 0.93));
+        SHOOTER_MAP.put(4.0,  new ShooterParams(55.7, 1.08));
+        SHOOTER_MAP.put(4.5,  new ShooterParams(59.7, 1.16));
+        SHOOTER_MAP.put(5.0,  new ShooterParams(63.7, 01.24));
+        SHOOTER_MAP.put(5.5,  new ShooterParams(66.4, 1.34));
+        SHOOTER_MAP.put(6.0,  new ShooterParams(69.4, 1.53));
+        SHOOTER_MAP.put(9.3,  new ShooterParams(100.0, 2.18));
+
+
 
         // Fill distance interpolation map
         for (Entry<Double, ShooterParams> e : SHOOTER_MAP.entrySet()) {

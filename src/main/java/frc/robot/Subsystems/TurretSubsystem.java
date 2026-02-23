@@ -4,6 +4,11 @@
 
 package frc.robot.Subsystems;
 
+import org.littletonrobotics.junction.Logger;
+import org.littletonrobotics.junction.mechanism.LoggedMechanism2d;
+import org.littletonrobotics.junction.mechanism.LoggedMechanismLigament2d;
+import org.littletonrobotics.junction.mechanism.LoggedMechanismRoot2d;
+
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
@@ -13,6 +18,7 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
@@ -41,51 +47,47 @@ public class TurretSubsystem extends SubsystemBase {
   double turretRelativePos = 0;
   double normalizedAngle = 0;
 
-  double Upperlimit = 90;
-  double Lowerlimit = -270;
+  double Upperlimit = 270;
+  double Lowerlimit = -90;
 
   // ---------------- Mechanism2d ----------------
-  private final Mechanism2d mech = new Mechanism2d(3, 3);
-  private final MechanismRoot2d root = mech.getRoot("TurretRoot", 1.5, 1.5);
+  private final LoggedMechanism2d mech = new LoggedMechanism2d(3, 3);
+  private final LoggedMechanismRoot2d root = mech.getRoot("TurretRoot", 1.5, 1.5);
 
   // Azul = posición real
-  private final MechanismLigament2d turretLigament =
-      root.append(new MechanismLigament2d(
-          "TurretActual",
-          1.0,
-          0,
-          6,
-          new Color8Bit(Color.kBlue)));
+  private final LoggedMechanismLigament2d turretLigament = root.append(new LoggedMechanismLigament2d(
+      "TurretActual",
+      1.0,
+      0,
+      6,
+      new Color8Bit(Color.kBlue)));
 
   // Rojo = setpoint (deseado)
-  private final MechanismLigament2d targetLigament =
-      root.append(new MechanismLigament2d(
-          "TurretTarget",
-          1.2,
-          0,
-          4,
-          new Color8Bit(Color.kRed)));
+  private final LoggedMechanismLigament2d targetLigament = root.append(new LoggedMechanismLigament2d(
+      "TurretTarget",
+      1.2,
+      0,
+      4,
+      new Color8Bit(Color.kRed)));
 
   // Verde / Naranja = límites (visuales)
-  private final MechanismLigament2d upperLimitLigament =
-      root.append(new MechanismLigament2d(
-          "UpperLimit",
-          1.35,
-          90,
-          2,
-          new Color8Bit(Color.kGreen)));
+  private final LoggedMechanismLigament2d upperLimitLigament = root.append(new LoggedMechanismLigament2d(
+      "UpperLimit",
+      1.35,
+      90,
+      2,
+      new Color8Bit(Color.kGreen)));
 
-  private final MechanismLigament2d lowerLimitLigament =
-      root.append(new MechanismLigament2d(
-          "LowerLimit",
-          1.35,
-          -270,
-          2,
-          new Color8Bit(Color.kOrange)));
+  private final LoggedMechanismLigament2d lowerLimitLigament = root.append(new LoggedMechanismLigament2d(
+      "LowerLimit",
+      1.35,
+      -270,
+      2,
+      new Color8Bit(Color.kOrange)));
   // ------------------------------------------------
 
   public TurretSubsystem(int canId, Translation2d turretOffset) {
-    Lturret = new SparkMax(2, canId, MotorType.kBrushless); // (lo dejo igual como lo tienes)
+    Lturret = new SparkMax(2, canId, MotorType.kBrushless);
     this.turretOffset = turretOffset;
 
     TurretConfig
@@ -96,48 +98,53 @@ public class TurretSubsystem extends SubsystemBase {
 
     Lturret.configure(TurretConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
-    // Publica el Mechanism2d a SmartDashboard (Shuffleboard / AdvantageScope puede leerlo)
-    SmartDashboard.putData("TurretMechanism2d-" + canId, mech);
+    setName("TurretSubsystem" + canId);
+
+    Logger.recordOutput(getName() + "/TurretMechanism2d", mech);
 
     resetOffsetCMD().schedule();
   }
 
   @Override
-public void periodic() {
-  turretRelativePos = -Lturret.getEncoder().getPosition() - turretOffsetEnc;
+  public void periodic() {
+    turretRelativePos = Lturret.getEncoder().getPosition() - turretOffsetEnc;
 
-  if (desiredAngle > Upperlimit) {
-    normalizedAngle = desiredAngle - 360;
-  } else if (desiredAngle < Lowerlimit) {
-    normalizedAngle = desiredAngle + 360;
-  } else {
-    normalizedAngle = desiredAngle;
+    if (desiredAngle > Upperlimit) {
+      normalizedAngle = desiredAngle - 360;
+    } else if (desiredAngle < Lowerlimit) {
+      normalizedAngle = desiredAngle + 360;
+    } else {
+      normalizedAngle = desiredAngle;
+    }
+
+    turretPidController.setSetpoint(normalizedAngle);
+
+    double pidOut = turretPidController.calculate(turretRelativePos);
+    TurretOut = MathUtil.clamp(pidOut, -0.5, 0.5);
+
+    if (turretRelativePos >= Upperlimit && TurretOut > 0) {
+      TurretOut = 0;
+    }
+    if (turretRelativePos <= Lowerlimit && TurretOut < 0) {
+      TurretOut = 0;
+    }
+
+    Lturret.set(TurretOut);
+
+    turretLigament.setAngle(turretRelativePos);
+    targetLigament.setAngle(normalizedAngle);
+    upperLimitLigament.setAngle(Upperlimit);
+    lowerLimitLigament.setAngle(Lowerlimit);
+
+    SmartDashboard.putNumber("Turret/RelPos", turretRelativePos);
+    SmartDashboard.putNumber("Turret/Desired", desiredAngle);
+    SmartDashboard.putNumber("Turret/Norm", normalizedAngle);
+    SmartDashboard.putNumber("Turret/Out", TurretOut);
   }
 
-  turretPidController.setSetpoint(normalizedAngle);
-
-  double pidOut = turretPidController.calculate(turretRelativePos);
-  TurretOut = MathUtil.clamp(pidOut, -0.7, 0.7);
-
-  if (turretRelativePos >= Upperlimit && TurretOut > 0) {
-    TurretOut = 0;
+  public Rotation2d getAngle() {
+    return Rotation2d.fromDegrees(turretRelativePos);
   }
-  if (turretRelativePos <= Lowerlimit && TurretOut < 0) {
-    TurretOut = 0;
-  }
-
-  Lturret.set(TurretOut);
-
-  turretLigament.setAngle(turretRelativePos);
-  targetLigament.setAngle(normalizedAngle);
-  upperLimitLigament.setAngle(Upperlimit);
-  lowerLimitLigament.setAngle(Lowerlimit);
-
-  SmartDashboard.putNumber("Turret/RelPos", turretRelativePos);
-  SmartDashboard.putNumber("Turret/Desired", desiredAngle);
-  SmartDashboard.putNumber("Turret/Norm", normalizedAngle);
-  SmartDashboard.putNumber("Turret/Out", TurretOut);
-}
 
   public void setAngle(double angle) {
     desiredAngle = angle;

@@ -18,28 +18,29 @@ import frc.robot.Subsystems.CommandSwerveDrivetrain;
 import frc.robot.Subsystems.ShooterSubsystem;
 import frc.robot.Subsystems.TurretSubsystem;
 
-public class SOTFCommand extends Command {
+public class StoreBallsCommand extends Command {
 
   CommandSwerveDrivetrain drivetrain;
 
   ShooterSubsystem shooter;
   TurretSubsystem turret;
 
-  double Goal_X_Red = 11.920;
-  double Goal_Y_Red = 4.035;
+  double Goal_X_Red = 12.8;
 
-  double Goal_X_Blue = 4.634;
-  double Goal_Y_Blue = 4.035;
+  double Goal_X_Blue = 3.496;
 
-  double Goal_X = 11.920;
-  double Goal_Y = 4.035;
+  double GoalRight_Y = 5.633;
+  double GoalLeft_Y = 2.644;
+
+  double Goal_X = 0;
+  double Goal_Y = 0;
 
   private boolean getAlliance = false;
 
   private double lastTime = Timer.getFPGATimestamp();
   private double avgDt = 0.02;
 
-  public SOTFCommand(
+  public StoreBallsCommand(
       CommandSwerveDrivetrain drivetrain,
       ShooterSubsystem shooterSubsystem,
       TurretSubsystem turretSubsystem) {
@@ -58,39 +59,42 @@ public class SOTFCommand extends Command {
     // filtro para que no brinque
     avgDt = 0.9 * avgDt + 0.1 * dt;
 
-    SmartDashboard.putNumber(turret.getName() + "/SOTF/dt", dt);
-    SmartDashboard.putNumber(turret.getName() + "/SOTF/avgDt", avgDt);
+    SmartDashboard.putNumber("SOTF/dt", dt);
+    SmartDashboard.putNumber("SOTF/avgDt", avgDt);
     Optional<Alliance> alliance = DriverStation.getAlliance();
+    Pose2d pose = drivetrain.getState().Pose;
+
 
     if (alliance.isPresent() && !getAlliance) {
       if (alliance.get() == Alliance.Red) {
-        Goal_X = Goal_X_Red;
-        Goal_Y = Goal_Y_Red;
-        getAlliance = true;
+        if (pose.getY() > 4) {
+            Goal_X = Goal_X_Red;
+            Goal_Y = GoalRight_Y;
+        }else if(pose.getY() < 4){
+            Goal_X = Goal_X_Red;
+            Goal_Y = GoalLeft_Y;
+        }  
       } else if (alliance.get() == Alliance.Blue) {
-        Goal_X = Goal_X_Blue;
-        Goal_Y = Goal_Y_Blue;
-        getAlliance = true;
+        if (pose.getY() > 4) {
+            Goal_X = Goal_X_Blue;
+            Goal_Y = GoalRight_Y;
+        }else if(pose.getY() < 4){
+            Goal_X = Goal_X_Blue;
+            Goal_Y = GoalLeft_Y;
+        }  
       } else {
         Goal_X = Goal_X_Red;
-        Goal_Y = Goal_Y_Red;
+        Goal_Y = GoalRight_Y;
       }
     }
-    Pose2d pose = drivetrain.getState().Pose;
     ChassisSpeeds speeds = drivetrain.getState().Speeds;
-
-    Translation2d rotatedTurretOffset = turret.turretOffset.rotateBy(pose.getRotation());
-    Translation2d turretFieldPos = pose.getTranslation().plus(rotatedTurretOffset);
-
-    Logger.recordOutput("rotatedTurretOffset", rotatedTurretOffset);
-
-    Logger.recordOutput(turret.getName() + "/SOTF/turretFieldPos", new Pose2d(turretFieldPos, pose.getRotation().plus(turret.getAngle())));
+    Translation2d turretFieldPos = pose.getTranslation().plus(turret.turretOffset.rotateBy(pose.getRotation()));
 
     ShooterResult result = ShooterController.calculate(
         turretFieldPos,
         new Translation2d(speeds.vx, speeds.vy),
         new Translation2d(Goal_X, Goal_Y),
-        0.088
+        avgDt
     );
 
     shooter.setVelocity(result.requiredRps());
