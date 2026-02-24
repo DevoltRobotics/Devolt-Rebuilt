@@ -83,6 +83,12 @@ public class SOTFCommand extends Command {
     Translation2d turretFieldPos = pose.getTranslation().plus(rotatedTurretOffset);
 
     Logger.recordOutput("rotatedTurretOffset", rotatedTurretOffset);
+    Logger.recordOutput("Chasis speed X", speeds.vx);
+    Logger.recordOutput("Chasis speed y", speeds.vy);
+    Logger.recordOutput("Chasis speed vamg", Math.hypot(speeds.vx, speeds.vy));
+
+
+
 
     Logger.recordOutput(turret.getName() + "/SOTF/turretFieldPos", new Pose2d(turretFieldPos, pose.getRotation().plus(turret.getAngle())));
 
@@ -90,7 +96,7 @@ public class SOTFCommand extends Command {
         turretFieldPos,
         new Translation2d(speeds.vx, speeds.vy),
         new Translation2d(Goal_X, Goal_Y),
-        0.088
+        0.092
     );
 
     shooter.setVelocity(result.requiredRps());

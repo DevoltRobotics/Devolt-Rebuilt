@@ -67,54 +67,68 @@ public class ShooterController {
     }
 
     public static ShooterResult calculate(
-            Translation2d robotPosition,
-            Translation2d robotVelocity,
-            Translation2d goalPosition,
-            double latencyCompensation) {
+        Translation2d robotPosition,
+        Translation2d robotVelocity,
+        Translation2d goalPosition,
+        double latencyCompensation) {
 
-        // 1) Future position (optional)
-        Translation2d futurePos = robotPosition.plus(robotVelocity.times(latencyCompensation));
+    // 1) Future position (optional)
+    Translation2d futurePos = robotPosition.plus(robotVelocity.times(latencyCompensation));
 
-        // 2) Vector to goal in FIELD frame
-        Translation2d toGoal = goalPosition.minus(futurePos);
-        double distance = toGoal.getNorm();
+    // 2) Vector to goal in FIELD frame
+    Translation2d toGoal = goalPosition.minus(futurePos);
+    double distance = toGoal.getNorm();
 
-        // Guard
-        if (distance < 1e-6) {
-            return new ShooterResult(new Rotation2d(), 0.0);
-        }
-
-        // 3) Clamp distance to LUT range & get baseline params from LUT
-        double clampedDist = MathUtil.clamp(distance, MIN_DISTANCE, MAX_DISTANCE);
-        ShooterParams baseline = SHOOTER_INTERP_MAP.get(clampedDist);
-        if (baseline == null) {
-            baseline = SHOOTER_INTERP_MAP.get(MIN_DISTANCE);
-        }
-
-        // 4) Baseline "shot" horizontal velocity (your model)
-        double baselineVelocity = clampedDist / baseline.timeOfFlight;
-
-        // 5) Build desired target velocity vector toward goal
-        Translation2d targetDirection = toGoal.div(distance);
-        Translation2d targetVelocity  = targetDirection.times(baselineVelocity);
-
-        // 6) Compensate for robot motion (SOTF)
-        Translation2d shotVelocity = targetVelocity.minus(robotVelocity);
-
-        // 7) Turret field angle from compensated shot vector
-        Rotation2d turretFieldAngle = shotVelocity.getAngle();
-
-        // 8) Convert compensated required velocity magnitude back to "effective distance"
-        // so we can pick an RPS from distance LUT
-        double requiredVelocity = shotVelocity.getNorm();
-        double effectiveDistance = velocityToEffectiveDistance(requiredVelocity);
-
-        // 9) Clamp & get RPS from interpolated distance LUT
-        double clampedEff = MathUtil.clamp(effectiveDistance, MIN_DISTANCE, MAX_DISTANCE);
-        double requiredRps = SHOOTER_INTERP_MAP.get(clampedEff).rps;
-
-        return new ShooterResult(turretFieldAngle, requiredRps);
+    // Guard
+    if (distance < 1e-6) {
+        return new ShooterResult(new Rotation2d(), 0.0);
     }
+
+    // 3) Clamp distance to LUT range & get baseline params from LUT
+    double clampedDist = MathUtil.clamp(distance, MIN_DISTANCE, MAX_DISTANCE);
+    ShooterParams baseline = SHOOTER_INTERP_MAP.get(clampedDist);
+    if (baseline == null) {
+        baseline = SHOOTER_INTERP_MAP.get(MIN_DISTANCE);
+    }
+
+    // 4) Baseline horizontal speed (your model)
+    double baselineVelocity = clampedDist / baseline.timeOfFlight;
+
+    // 5) Direction to goal
+    Translation2d targetDirection = toGoal.div(distance);
+
+    // 6) Build desired target velocity vector toward goal (for ANGLE)
+    Translation2d targetVelocity = targetDirection.times(baselineVelocity);
+
+    // 7) SOTF vector compensation -> turret angle (2D)
+    Translation2d shotVelocity = targetVelocity.minus(robotVelocity);
+    Rotation2d turretFieldAngle = shotVelocity.getAngle();
+
+    // ------------------ FIX RÁPIDO PARA RPS ------------------
+    // Solo compensa RPS por componente radial (acercarte/alejarte),
+    // no por magnitud completa (evita spikes a 100 RPS).
+    double vRadial = robotVelocity.getX() * targetDirection.getX()
+                   + robotVelocity.getY() * targetDirection.getY();
+
+    // Required horizontal speed along line-to-goal
+    double requiredVelocity1D = baselineVelocity - vRadial;
+
+    // Limita cuánto puede cambiar la velocidad por movimiento del robot, para evitar spikes en RPS.
+    double maxExtraMps = 3.5; 
+    requiredVelocity1D = MathUtil.clamp(
+        requiredVelocity1D,
+        baselineVelocity - maxExtraMps,
+        baselineVelocity + maxExtraMps
+    );
+ 
+    // Convierte velocidad->distancia efectiva->RPS usando tu LUT existente
+    double effectiveDistance = velocityToEffectiveDistance(requiredVelocity1D);
+    double clampedEff = MathUtil.clamp(effectiveDistance, MIN_DISTANCE, MAX_DISTANCE);
+    double requiredRps = SHOOTER_INTERP_MAP.get(clampedEff).rps;
+    // ---------------------------------------------------------
+
+    return new ShooterResult(turretFieldAngle, requiredRps);
+}
 
     /**
      * Converts a required horizontal muzzle velocity to an "effective distance"

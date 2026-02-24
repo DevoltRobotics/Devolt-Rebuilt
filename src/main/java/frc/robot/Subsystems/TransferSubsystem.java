@@ -66,17 +66,13 @@ public class TransferSubsystem extends SubsystemBase {
 
   public Command TransferShootCMD(TransferSubsystem transferSubsystem){
     return new InstantCommand(()->{
-      kickerConfig.CurrentLimits.SupplyCurrentLimit = 35;
-          kickerMotor.getConfigurator().apply(kickerConfig);
         transferSubsystem.setSpeeds(1, 1);
     });
   }
 
   public Command StopTransferCMD(TransferSubsystem transferSubsystem){
         return new InstantCommand(()->{
-          kickerConfig.CurrentLimits.SupplyCurrentLimit = 3;
-          kickerMotor.getConfigurator().apply(kickerConfig);
-          transferSubsystem.setSpeeds(0.1, 0.03);
+          transferSubsystem.setSpeeds(0,0);
         });
   }
   @Override

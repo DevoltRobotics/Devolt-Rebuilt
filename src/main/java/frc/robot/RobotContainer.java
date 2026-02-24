@@ -126,7 +126,7 @@ public class RobotContainer {
         joystick.leftStick().onTrue(turretLeftSubsystem.SetTurretPosCMD(89));
 
         povRight.onTrue(shooterLeftSubsystem.SetVelocityCMD(100));
-        povLeft.onTrue(shooterRightSubsystem.SetVelocityCMD(20));
+        povLeft.onTrue(shooterRightSubsystem.SetVelocityCMD(17));
 
         joystick.a().onTrue(turretLeftSubsystem.resetOffsetCMD());
 
